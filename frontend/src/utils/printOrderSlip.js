@@ -4,7 +4,7 @@ export const formatOrderType = (orderType) => {
 
 export const formatServiceType = (serviceType) => {
   if (serviceType === 'frame') return 'Frame';
-  if (serviceType === 'lamination') return 'Lamination';
+  if (serviceType === 'print') return 'Lamination';
   if (serviceType === 'both') return 'Frame + Lamination';
   return serviceType;
 };

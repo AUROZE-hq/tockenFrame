@@ -24,7 +24,7 @@ const orderSchema = new mongoose.Schema({
   },
   serviceType: {
     type: String,
-    enum: ["frame", "lamination", "both"],
+    enum: ["frame", "print", "both"],
     required: true
   },
   workStatus: {

@@ -69,10 +69,10 @@ const sendSMS = async ({ to, message }) => {
 };
 
 const sendOrderPlacedSMS = async (order) => {
-  let serviceDisplay = "Photo Lamination / Frame";
+  let serviceDisplay = "Photo Print / Frame";
   if (order.serviceType === "frame") serviceDisplay = "Frame";
-  else if (order.serviceType === "lamination") serviceDisplay = "Lamination";
-  else if (order.serviceType === "both") serviceDisplay = "Frame & Lamination";
+  else if (order.serviceType === "print") serviceDisplay = "Print";
+  else if (order.serviceType === "both") serviceDisplay = "Frame & Print";
 
   const message = `Coastal Creatives Production
 

@@ -58,7 +58,7 @@ const createOrder = async (req, res, next) => {
       if (serviceType === 'frame' || serviceType === 'both') {
         inventory.frameStock = Math.max(0, inventory.frameStock - 1);
       }
-      if (serviceType === 'lamination' || serviceType === 'both') {
+      if (serviceType === 'print' || serviceType === 'both') {
         inventory.laminationStock = Math.max(0, inventory.laminationStock - 1);
       }
       
