@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const whatsappLogRoutes = require('./routes/whatsappLogRoutes');
 const smsLogRoutes = require('./routes/smsLogRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/whatsapp-logs', whatsappLogRoutes);
 app.use('/api/sms-logs', smsLogRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);

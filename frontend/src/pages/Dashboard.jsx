@@ -10,6 +10,7 @@ import {
 import * as orderApi from '../api/orderApi';
 import * as whatsappLogApi from '../api/whatsappLogApi';
 import * as smsLogApi from '../api/smsLogApi';
+import * as inventoryApi from '../api/inventoryApi';
 import { getAdmin } from '../utils/auth';
 import { buildWhatsAppUrl } from '../utils/whatsapp';
 import { printOrderSlip } from '../utils/printOrderSlip';
@@ -22,8 +23,10 @@ const Dashboard = () => {
   const admin = getAdmin();
   const [form] = Form.useForm();
   const [clearForm] = Form.useForm();
+  const [inventoryForm] = Form.useForm();
   
   const [orders, setOrders] = useState([]);
+  const [inventory, setInventory] = useState({ frameStock: 0, laminationStock: 0 });
   const [loading, setLoading] = useState(false);
   
   // Filters state
@@ -55,6 +58,9 @@ const Dashboard = () => {
   const [autoPrint, setAutoPrint] = useState(true);
   const [formOrderType, setFormOrderType] = useState('onspot');
 
+  const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
+  const [updatingInventory, setUpdatingInventory] = useState(false);
+
   const loadOrders = async () => {
     setLoading(true);
     try {
@@ -70,8 +76,43 @@ const Dashboard = () => {
     }
   };
 
+  const loadInventory = async () => {
+    try {
+      const { data } = await inventoryApi.getInventory();
+      if (data) {
+        setInventory(data);
+        
+        // Show Low Stock Alert
+        if (data.frameStock <= 5 || data.laminationStock <= 5) {
+          const lowFrames = data.frameStock <= 5;
+          const lowLamination = data.laminationStock <= 5;
+          
+          Modal.warning({
+            title: '⚠️ LOW STOCK ALERT',
+            content: (
+              <div>
+                <p>The following items are running low (5 or fewer left):</p>
+                <ul>
+                  {lowFrames && <li><strong>Frames:</strong> {data.frameStock} remaining</li>}
+                  {lowLamination && <li><strong>Lamination:</strong> {data.laminationStock} remaining</li>}
+                </ul>
+                <p>Please restock soon to avoid service interruptions.</p>
+              </div>
+            ),
+            okText: 'Understood',
+            width: 500,
+            className: 'stock-alert-modal'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load inventory');
+    }
+  };
+
   useEffect(() => {
     loadOrders();
+    loadInventory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filters]);
 
@@ -230,6 +271,7 @@ const Dashboard = () => {
       }
       setModalVisible(false);
       loadOrders();
+      loadInventory();
     } catch (error) {
       message.error(error.response?.data?.message || 'Action failed');
     } finally {
@@ -449,6 +491,23 @@ const Dashboard = () => {
     }
   ];
 
+  const handleInventorySubmit = async (values) => {
+    try {
+      setUpdatingInventory(true);
+      const response = await inventoryApi.updateInventory(values);
+      if (response.success) {
+        message.success('Inventory updated successfully');
+        setInventoryModalVisible(false);
+        inventoryForm.resetFields();
+        loadInventory();
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Failed to update inventory');
+    } finally {
+      setUpdatingInventory(false);
+    }
+  };
+
   const logsColumns = [
     {
       title: 'Date/Time',
@@ -574,6 +633,15 @@ const Dashboard = () => {
           <Button icon={<WhatsAppOutlined />} onClick={openLogsDrawer}>
             WhatsApp Logs
           </Button>
+          <Button icon={<EditOutlined />} onClick={() => {
+            inventoryForm.setFieldsValue({ 
+              frameStock: inventory.frameStock, 
+              laminationStock: inventory.laminationStock 
+            });
+            setInventoryModalVisible(true);
+          }}>
+            Update Stock
+          </Button>
           <Button danger type="primary" icon={<WarningOutlined />} onClick={() => setClearModalVisible(true)}>
             Clear All Data
           </Button>
@@ -584,34 +652,50 @@ const Dashboard = () => {
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={8} md={4}>
+        <Col xs={12} sm={8} md={3}>
           <Card size="small">
             <Text type="secondary">Total Orders</Text>
             <Title level={3} style={{ margin: 0 }}>{totalOrders}</Title>
           </Card>
         </Col>
-        <Col xs={12} sm={8} md={4}>
+        <Col xs={12} sm={8} md={3}>
           <Card size="small">
             <Text type="secondary">Pending Work</Text>
             <Title level={3} style={{ margin: 0, color: '#faad14' }}>{pendingWork}</Title>
           </Card>
         </Col>
-        <Col xs={12} sm={8} md={4}>
+        <Col xs={12} sm={8} md={3}>
           <Card size="small">
             <Text type="secondary">Work Done</Text>
             <Title level={3} style={{ margin: 0, color: '#52c41a' }}>{workDone}</Title>
           </Card>
         </Col>
-        <Col xs={12} sm={8} md={4}>
+        <Col xs={12} sm={8} md={3}>
           <Card size="small">
             <Text type="secondary">Delivered</Text>
             <Title level={3} style={{ margin: 0, color: '#1890ff' }}>{delivered}</Title>
           </Card>
         </Col>
-        <Col xs={12} sm={8} md={4}>
+        <Col xs={12} sm={8} md={3}>
           <Card size="small">
             <Text type="secondary">Cancelled</Text>
             <Title level={3} style={{ margin: 0, color: '#ff4d4f' }}>{cancelledOrders}</Title>
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={4}>
+          <Card size="small" style={{ borderTop: `4px solid ${inventory.frameStock <= 5 ? '#ff4d4f' : '#1890ff'}` }}>
+            <Text type="secondary">Frame Stock</Text>
+            <Title level={3} style={{ margin: 0, color: inventory.frameStock <= 5 ? '#ff4d4f' : 'inherit' }}>
+              {inventory.frameStock}
+            </Title>
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={5}>
+          <Card size="small" style={{ borderTop: `4px solid ${inventory.laminationStock <= 5 ? '#ff4d4f' : '#1890ff'}` }}>
+            <Text type="secondary">Lamination Stock</Text>
+            <Title level={3} style={{ margin: 0, color: inventory.laminationStock <= 5 ? '#ff4d4f' : 'inherit' }}>
+              {inventory.laminationStock}
+            </Title>
           </Card>
         </Col>
       </Row>
@@ -801,6 +885,56 @@ const Dashboard = () => {
               <Button onClick={() => setClearModalVisible(false)}>Cancel</Button>
               <Button danger type="primary" htmlType="submit" loading={clearing}>
                 Clear All Data
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Update Inventory Modal */}
+      <Modal
+        title="Update Inventory Stock"
+        open={inventoryModalVisible}
+        onCancel={() => setInventoryModalVisible(false)}
+        footer={null}
+        destroyOnHidden
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary">Set the total quantity available in your inventory.</Text>
+        </div>
+        <Form form={inventoryForm} layout="vertical" onFinish={handleInventorySubmit}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="frameStock"
+                label="Total Frame Count"
+                rules={[{ required: true, message: 'Please enter frame count' }]}
+              >
+                <Input type="number" min={0} placeholder="e.g. 100" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="laminationStock"
+                label="Total Lamination Count"
+                rules={[{ required: true, message: 'Please enter lamination count' }]}
+              >
+                <Input type="number" min={0} placeholder="e.g. 100" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item
+            name="password"
+            label="Confirm with Admin Password"
+            rules={[{ required: true, message: 'Admin password is required to change counts' }]}
+          >
+            <Input.Password placeholder="Enter password to confirm" />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={() => setInventoryModalVisible(false)}>Cancel</Button>
+              <Button type="primary" htmlType="submit" loading={updatingInventory}>
+                Update Inventory
               </Button>
             </Space>
           </Form.Item>

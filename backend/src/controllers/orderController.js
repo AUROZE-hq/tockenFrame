@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const whatsappService = require('../services/whatsappService');
 const SmsMessageLog = require('../models/SmsMessageLog');
 const smsService = require('../services/smsService');
+const Inventory = require('../models/Inventory');
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -46,6 +47,26 @@ const createOrder = async (req, res, next) => {
     });
 
     const createdOrder = await order.save();
+
+    // Update Inventory
+    try {
+      let inventory = await Inventory.findOne();
+      if (!inventory) {
+        inventory = await Inventory.create({ frameStock: 0, laminationStock: 0 });
+      }
+
+      if (serviceType === 'frame' || serviceType === 'both') {
+        inventory.frameStock = Math.max(0, inventory.frameStock - 1);
+      }
+      if (serviceType === 'lamination' || serviceType === 'both') {
+        inventory.laminationStock = Math.max(0, inventory.laminationStock - 1);
+      }
+      
+      await inventory.save();
+    } catch (inventoryError) {
+      console.error('Inventory Update Error:', inventoryError);
+      // We don't throw here to avoid failing the order creation if inventory fails
+    }
 
     // Call WhatsApp stub
     const whatsappResponse = await whatsappService.sendOrderPlacedMessage(createdOrder);
